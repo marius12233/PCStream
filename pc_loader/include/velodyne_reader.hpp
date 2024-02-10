@@ -19,7 +19,6 @@ class VelodyneReaderAdapter {
         VelodyneReaderAdapter(string filename, string calibration_file) :
             packetReader(velodyne_decoder::DATA_PORT_NUMBER, 10.0, filename, true),
             config{"VLP-16", calibration_file} {
-            
             // 600 / 60 = 10 frames per second (Hz) at which the packets are collected
             config.rpm = 600;
             decoder_ptr = std::make_shared<velodyne_decoder::StreamDecoder>(config);

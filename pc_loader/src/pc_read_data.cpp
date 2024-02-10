@@ -37,6 +37,7 @@
 #include <boost/asio.hpp>
 #include "velodyne_reader.hpp"
 #include "types_gpu.hpp"
+#include <math.h>
 
 
 int main(int argc, char* argv[])
@@ -59,47 +60,31 @@ int main(int argc, char* argv[])
     velodyne_decoder::PointCloud pcl;
     velodyne_reader.read_scan(pcl);
     std::cout << pcl[0].intensity << std::endl;
+    std::cout << "PCL ori point 0: " << pcl[0].x << " " << 
+                                        pcl[0].y << " " << 
+                                        pcl[0].z << std::endl;
 
     PointCloudGPU point_cloud_gpu{pcl};
 
+    auto& point_cloud_arr = point_cloud_gpu.toHost();
+
+    std::cout << "PCL arr point 0: " << point_cloud_arr[0] << " " << 
+                                        point_cloud_arr[1] << " " << 
+                                        point_cloud_arr[2] << std::endl;
+
     std::array<float, MAX_NUM_POINTS> ranges;
-
     point_cloud_gpu.computeRangeArray(ranges);
-    std::cout << ranges[0] << std::endl;
 
+    std::cout << "Range size: " << pcl.size() << std::endl;
 
+    for(int i=0; i < pcl.size(); i++) {
+        float cpu_range = std::sqrt(pcl[i].x * pcl[i].x + 
+        pcl[i].y * pcl[i].y +
+        pcl[i].z * pcl[i].z);
+        assert(cpu_range == ranges[i]);
 
-/*
-    velodyne_decoder::InputPCAP packetReader(velodyne_decoder::DATA_PORT_NUMBER, 10.0, filename, true);
-    velodyne_decoder::Config config{"VLP-16", calibration_file};
-    config.rpm = 600; // 600 / 60 = 10 frames per second (Hz) at which the packets are collected
-    velodyne_decoder::StreamDecoder decoder{config};
-    double timeSinceStart = 0;
-    int nscans = 100;
-
-
-    for (int i = 0; i < nscans; ++i) {
-        bool is_scan_full = false;
-        while (!is_scan_full) {
-            velodyne_decoder::VelodynePacket pkt;
-            // keep reading until full packet received
-            int rc = packetReader.getPacket(&pkt, timeSinceStart);
-            if (rc == 1) {    // got a full packet?
-                if(auto result = decoder.decode(pkt)) {
-                    std::pair<velodyne_decoder::Time, velodyne_decoder::PointCloud> pair = result.value();
-                    printf("intensity 1st point: %f\n", pair.second[0].intensity); 
-                    printf("# points: %d\n", pair.second.size()); 
-                    is_scan_full = true;
-                }            
-            }       
-            if (rc < 0) {     // end of file reached?
-                printf("end of packet file\n");
-                return 0;
-            } 
-            if (rc == 0) continue;    //timeout?
-        }
-        printf("curr num packets read : %d\n", i);
     }
-*/
+
+
 return 0;
 }

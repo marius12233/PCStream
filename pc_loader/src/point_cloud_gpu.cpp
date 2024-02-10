@@ -1,9 +1,9 @@
 #include "types_gpu.hpp"
-
+#include <iostream>
 
 PointCloudGPU::PointCloudGPU(velodyne_decoder::PointCloud& point_cloud) {
-
-    size_t bytes = MAX_NUM_POINTS * sizeof(float);
+    num_points = point_cloud.size();
+    const size_t bytes = num_points * NUM_FIELDS * sizeof(float);
 
     cudaMalloc(&d_point_cloud_ptr, bytes);
 
@@ -22,6 +22,19 @@ PointCloudGPU::~PointCloudGPU() {
     cudaFree(d_point_cloud_ptr);
 }
 
+std::array<float, MAX_NUM_POINTS * NUM_FIELDS>& PointCloudGPU::toHost() {
+    cudaMemcpy(point_cloud_array.data(), d_point_cloud_ptr, num_points * NUM_FIELDS * sizeof(float), cudaMemcpyDeviceToHost);
+    return point_cloud_array;
+}
+
 void PointCloudGPU::computeRangeArray(std::array<float, MAX_NUM_POINTS>& ranges) {
-    computeRangeKernel(d_point_cloud_ptr, ranges.data());
+    float* d_ranges_ptr;
+    const size_t bytes = num_points * sizeof(float);
+    gpuErrchk(cudaMalloc(&d_ranges_ptr, bytes));
+
+    computeRangeKernel(d_point_cloud_ptr, d_ranges_ptr, bytes); //point_cloud_array.size());
+
+    gpuErrchk(cudaMemcpy(ranges.data(), d_ranges_ptr, bytes, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaFree(d_ranges_ptr));
+
 }
